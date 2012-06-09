@@ -1,0 +1,1 @@
+###SMSBOX is an android app for sms lovers built with PhoneGap and jQueryMobile
