@@ -1,0 +1,284 @@
+								<!DOCTYPE HTML>
+								<html>
+
+								<head>
+								<title>SmsBox</title>
+								<script type="text/javascript" charset="utf-8" src="js/cordova-1.7.js"></script>
+								<link rel="stylesheet" type="text/css" href="styles/jqmobile.css" />
+								<script type="text/javascript" charset="utf-8" src="js/jquery.js"></script>
+								<script type="text/javascript" charset="utf-8" src="js/jquerymobile.js"></script>
+								<script type="text/javascript" charset="utf-8" src="data.js"></script>
+
+								<script type="text/javascript" charset="utf-8">
+								var db;
+								document.addEventListener("deviceready", onDeviceReady, false);
+								function onDeviceReady() {
+								$('#birthday_count').html(get_length('birthday'));
+								$('#love_count').html(get_length('love'));
+								$('#naughty_count').html(get_length('naughty'));
+								$('#newyear_count').html(get_length('newyear'));
+								$('#missingyou_count').html(get_length('missingyou'));
+								$('#jokes_count').html(get_length('jokes'));
+								$('#wisewords_count').html(get_length('wisewords'));
+								$('#goodmorning_count').html(get_length('goodmorning'));
+								$('#goodnight_count').html(get_length('goodnight'));
+
+								db = window.openDatabase("smsbox_fav", "1.0", "list_fav", 200000);
+								db.transaction( function(tx){ tx.executeSql('CREATE TABLE IF NOT EXISTS FAV_BOX (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, data)'); });
+
+								$(".fav_it").live("click",function(){
+								var data = $(this).siblings('p').html();
+								add_to_fav(data);
+								});
+
+								$(".un_fav_it").live("click",function(){
+								var del_id = $(this).attr('rel');
+								del_fav(del_id);
+								$(this).parent('div').parent('div').fadeOut('slow').remove();
+								$( ":jqmData(role=collapsible-set)" ).collapsibleset('refresh');
+								});
+
+								}
+
+								function get_data(cat){
+								var query = new String(cat);
+								var f_str = '';
+								$q = app_data
+								$.each(app_data[query], function() {
+								$.each(this, function(k, v) {
+								f_str+='<div data-role="collapsible"><h3>'+k+'</h3><p>'+v+'</p><a href="sms:?body='+v+'" data-role="button" data-theme="b"  data-icon="arrow-r" data-inline="true">Send SMS</a><a href="javascript: void(0);" data-role="button" data-icon="star" class="fav_it" data-theme="b" data-inline="true" >Fav it</a></div>';
+								});
+								});
+								return f_str;
+								}
+
+								function get_length(cat){
+								var query = new String(cat);
+								var i = 0;
+								$.each(app_data[query], function() {
+								$.each(this, function(k, v) {
+								i++;
+								});
+								});
+								return i;
+								}
+
+
+								// Listen for any attempts to call changePage().
+								$(document).bind( "pagebeforechange", function( e, data ) {
+
+								// We only want to handle changePage() calls where the caller is
+								// asking us to load a page by URL.
+								if ( typeof data.toPage === "string" ) {
+
+								// We are being asked to load a page by URL, but we only
+								// want to handle URLs that request the data for a specific
+								// category.
+								var u = $.mobile.path.parseUrl( data.toPage ),
+								re = /^#sms_index/,
+								fav_re = /^#fav/;
+								if ( u.hash.search(re) !== -1 ) {
+
+								// We're being asked to display the items for a specific category.
+								// Call our internal method that builds the content for the category
+								// on the fly based on our in-memory category data structure.
+								showCategory( u, data.options );
+
+								// Make sure to tell changePage() we've handled this call so it doesn't
+								// have to do anything.
+								e.preventDefault();
+								}else if(u.hash.search(fav_re) !== -1 ){
+								build_fav( u, data.options);
+								e.preventDefault();
+
+								}
+								}
+								});
+
+								function get_markup(str){
+								return '<div data-role="collapsible-set" data-theme="d" data-content-theme="b">'+str+'</div>';
+
+								}
+
+								function showCategory( urlObj, options )
+								{
+								var categoryName = urlObj.hash.replace( /.*category=/, "" ),
+								pageSelector = urlObj.hash.replace( /\?.*$/, "" );
+
+								var $page = $( pageSelector ),
+								$header = $page.children( ":jqmData(role=header)" ),
+								$content = $page.children( ":jqmData(role=content)" );
+
+								$header.find( "h1" ).html(categoryName);
+
+								$content.html( get_markup( get_data(categoryName) ) );
+
+								$page.page();
+
+								$( ":jqmData(role=collapsible-set)" ).collapsibleset();
+								$(":jqmData(role=button)").button();
+
+								options.dataUrl = urlObj.href;
+
+								$.mobile.changePage( $page, options );
+								}
+
+								function add_to_fav(fav){
+								db.transaction( function(tx){ tx.executeSql('INSERT INTO FAV_BOX (data) VALUES ("'+fav+'")'); }, errorCB, successCB);
+								}
+
+								function del_fav(id){
+								db.transaction( function(tx){ tx.executeSql('DELETE FROM FAV_BOX WHERE id ='+id); },errorCB, successCB);
+								}
+
+								function index_fav(){
+								db.transaction( function(tx) { tx.executeSql('SELECT * FROM FAV_BOX;',[],fav_builder, errorCB ); } );
+								}
+
+								function fav_builder(tx, results){
+								if(results.rows.length>0){
+								// var re = new RegExp(/\b'\b/);
+								var fav_res = "";
+								for (var j=0; j<results.rows.length; j++) {
+								var row = results.rows.item(j);
+								var data = row['data']; //.replace(re, "\'");
+								fav_res+='<div data-role="collapsible"><h3>'+data.substr(0,20)+'</h3><p>'+data+'</p><a href="sms:?body='+data+'" data-role="button" data-theme="b"  data-icon="arrow-r" data-inline="true">Send SMS</a><a href="javascript: void(0);" data-role="button" data-icon="minus" data-theme="b" data-inline="true" rel="'+row['id']+'" class="un_fav_it">Unfav it</a></div>';
+								}
+
+								var $page = $('#fav'),
+								$content = $page.children( ":jqmData(role=content)" );
+								$content.html( get_markup(fav_res) );
+								$page.page();
+								$( ":jqmData(role=collapsible-set)" ).collapsibleset();
+
+								$(":jqmData(role=button)").button();
+								}
+								else { alert("No favourite list created yet.");  }
+								}
+
+								function build_fav(urlObj, options){
+
+								index_fav();
+
+								var $page = $('#fav');
+
+								options.dataUrl = urlObj.href;
+
+								$.mobile.changePage( $page, options );
+
+								}
+
+								function errorCB(err) {
+								alert("Error processing SQL: Error code"+err.code+" | "+err.message);
+								}
+
+								function successCB() {
+								alert('Success !');
+								}
+								</script>
+								</head>
+
+								<body>
+
+								<div data-role="page">
+
+								<div data-role="header" data-theme="b" data-position="inline">
+								<h1>SmsBox | express your heart </h1><a href="#fav" data-icon="star" class="ui-btn-right" >Fav</a>
+								</div><!-- /header -->
+
+								<div data-role="content">
+								<ul data-role="listview"  data-theme="c">
+
+								<li><a href ="#sms_index?category=birthday">
+								<img src    ="images/birthday.png" class="ui-li-icon"> <h3>Birthdays</h3>
+								<span class ="ui-li-count" id="birthday_count"></span>
+								</a>
+								</li>
+
+								<li>
+								<a href="#sms_index?category=love"><img src="images/love.png" class="ui-li-icon"><h3>Love</h3>
+								<span class="ui-li-count" id="love_count"></span></a>
+								</li>
+
+								<li>
+								<a href="#sms_index?category=naughty"><img src="images/naughty.png" class="ui-li-icon"><h3>Naughty</h3>
+								<span class="ui-li-count" id="naughty_count"></span>
+								</a></li>
+
+								<li>
+								<a href="#sms_index?category=newyear"><img src="images/new_year.png" class="ui-li-icon"><h3>New Year</h3>
+								<span class="ui-li-count" id="newyear_count"></span></a>
+								</li>
+
+								<li>
+								<a href="#sms_index?category=missingyou"><img src="images/missyou.png" class="ui-li-icon"><h3>Missing You</h3>
+								<span class="ui-li-count" id="missingyou_count"></span></a></li>
+
+								<li>
+								<a href="#sms_index?category=jokes"><img src="images/jokes.png" class="ui-li-icon"><h3>Jokes</h3>
+								<span class="ui-li-count" id="jokes_count"></span></a></li>
+
+								<li>
+								<a href="#sms_index?category=wisewords"><img src="images/angel.png" class="ui-li-icon"><h3>Wise Words</h3>
+								<span class="ui-li-count" id="wisewords_count"></span></a></li>
+
+								<li>
+								<a href="#sms_index?category=goodmorning">
+								<img src="images/good_morning.png" class="ui-li-icon"><h3>Good Morning</h3>
+								<span class="ui-li-count" id="goodmorning_count"></span></a></li>
+
+								<li>
+								<a href="#sms_index?category=goodnight"><img src="images/good_night.png" class="ui-li-icon"><h3>Good Night</h3>
+								<span class="ui-li-count" id="goodnight_count"></span></a></li>
+
+								</ul>
+
+								</div><!-- /content -->
+
+								<div data-role="footer">
+								<div data-role="navbar" data-iconpos="left">
+								<ul>
+								<li><a  href="#about" data-rel="dialog" data-icon="grid">About</a></li>
+								<li><a href="#" data-icon="back" id="#backbutton"  onclick="onBackKeyDown();">Exit</a></li>
+								</ul>
+								</div><!-- /navbar -->
+								</div><!-- /footer -->
+
+								</div><!-- /page -->
+
+								<div id="sms_index" data-role="page" >
+								<div data-role="header" data-theme="b"><a href="index.html" data-icon="back" data-rel="back" >Back</a><h1></h1></div>
+								<div data-role="content"></div>
+								</div>
+
+								<!-- page fav -->
+								<div data-role="page" id="fav">
+
+								<div data-role="header"  data-theme="b">
+								<a href="index.html" data-icon="back" data-rel="back" >Back</a><h1>Favourites</h1>
+								</div><!-- /header -->
+
+								<div data-role="content">
+
+								</div><!-- /content -->
+
+								</div><!-- /page fav -->
+
+								<!-- page about -->
+								<div data-role="page" id="about">
+								<div data-role="header"  data-theme="b">
+								<h1>About</h1>
+								</div><!-- /header -->
+								<div data-role="content">
+								<h2>Smsbox <span>Version 1.0.0 </span> </h2>
+								<h4>Sms collection app for Android phones.</h4>
+								<h4>Built with Phonegap and JQuery Mobile</h4>
+								<h4><i>dedicated to chweet.</i></h4>
+								<h4>mention <a href="http://twitter.com/roxxypoxxy"  rel="external" data-ajax="false">@roxxypoxxy</a> for bugs or features </h4>
+								</div><!-- /content -->
+
+								</div><!-- /page about -->
+
+								</body>
+								</html>
+

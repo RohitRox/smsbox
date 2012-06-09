@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns		= "http://www.w3.org/ns/widgets"
+	xmlns:gap	= "http://phonegap.com/ns/1.0"
+	id		= "com.phonegap.smsbox.started"
+	version 	= "1.0.0">
+
+	<name>SMSBox</name>
+
+	<description>
+		A SMS collection app for sms lovers.
+	</description>
+
+	<author href="http://rohitrox.github.com"
+		email="link2j.roy@gmail.com">
+		Rohit Rox
+	</author>
+
+	<icon src="icon.png" gap:role="default" />
+
+	<preference name="orientation" value="portrait" />
+</widget>
+
